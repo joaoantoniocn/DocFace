@@ -92,6 +92,7 @@ def validate_tflite(args):
 
   result = np.ndarray((num_images, num_features), dtype=np.float32)
 
+  print("Extracting Embeddings from LFW...")
   #for start_idx in range(0, num_images, config.batch_size):
   for start_idx in range(num_images):
 
@@ -109,7 +110,11 @@ def validate_tflite(args):
     #result[start_idx:end_idx] = interpreter.get_tensor(output_details[0]['index'])
     result[start_idx] = interpreter.get_tensor(output_details[0]['index'])
 
+    if(start_idx%100 == 0):
+      print("Extract " + str(start_idx) + "/" + str(num_images))
+
   # calculating accuracy and threshold
+  print("Calculating accuracy...")
   accuracy_embeddings, threshold_embeddings = lfwtest.test_standard_proto(result)
   print('Embeddings Accuracy: %2.4f Threshold %2.3f' % (accuracy_embeddings, threshold_embeddings))
 
