@@ -188,6 +188,13 @@ if __name__ == '__main__':
   main(args)
 
 
+# Test the optimized .tflite model on LFW
+#python3 src/main.py --action validate_tflite --model_dir log/tflite/quantized_model.tflite
+
+# Transform the .pb model to a .tflite optimized (the .tflite model will be written at ./log/tflite/)
+#python3 src/main.py --action convert_model --model_dir log/frozen_model
+
+
 # Transforme the checkpoint model in a .pb model
 #python3 tensorflow/tensorflow/python/tools/freeze_graph.py --input_meta_graph=DocFace-master/log/faceres_ms/graph.meta --input_checkpoint=DocFace-master/log/faceres_ms/ckpt-320000 --output_graph=DocFace-master/log/model/frozen_graph.pb --output_node_names=outputs --input_binary=True
 
