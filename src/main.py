@@ -4,6 +4,7 @@ from basenet import BaseNetwork
 import utils
 from lfw import LFWTest
 import tensorflow as tf
+import time
 
 def euclidian(x1, x2):
   #x2 = x2.transpose()
@@ -61,6 +62,69 @@ def validate_lfw(args):
   accuracy_embeddings, threshold_embeddings = lfwtest.test_standard_proto(embeddings)
   print('Embeddings Accuracy: %2.4f Threshold %2.3f' % (accuracy_embeddings, threshold_embeddings))
 
+def validate_tflite(args):
+
+  # open config files
+  config = utils.import_file(args.config_file, 'config')
+  testset = utils.Dataset(args.test_dataset_path)
+
+  # Set up LFW test protocol and load images
+  print('Loading images...')
+  lfwtest = LFWTest(testset.images)
+  lfwtest.init_standard_proto(args.lfw_pairs_file)
+  lfwtest.images = utils.preprocess(lfwtest.image_paths, config, is_training=False)
+
+
+  # Load TFLite model and allocate tensors
+  print('Loading network tflite model...')
+  interpreter = tf.contrib.lite.Interpreter(args.model_dir)
+  interpreter.allocate_tensors()
+
+
+  # Get Input and output tensors
+  input_details = interpreter.get_input_details()
+  output_details = interpreter.get_output_details()
+
+  # ---------------------------------
+  # Testing on LFW
+  num_images = lfwtest.images.shape[0] if type(lfwtest.images) == np.ndarray else len(lfwtest.images)
+  num_features = output_details[0]['shape'][1]
+
+  result = np.ndarray((num_images, num_features), dtype=np.float32)
+
+  #for start_idx in range(0, num_images, config.batch_size):
+  for start_idx in range(num_images):
+
+    # get batch images
+    #end_idx = min(num_images, start_idx + config.batch_size)
+    #inputs = lfwtest.images[start_idx:end_idx]
+    inputs = np.expand_dims(lfwtest.images[start_idx], axis=0)
+    #print("input should be: ", str(input_details[0]['shape']))
+    #print("input: ", str(inputs.shape))
+    # run net
+    interpreter.set_tensor(input_details[0]['index'], inputs)
+    interpreter.invoke()
+
+    # get batches result
+    #result[start_idx:end_idx] = interpreter.get_tensor(output_details[0]['index'])
+    result[start_idx] = interpreter.get_tensor(output_details[0]['index'])
+
+  # calculating accuracy and threshold
+  accuracy_embeddings, threshold_embeddings = lfwtest.test_standard_proto(result)
+  print('Embeddings Accuracy: %2.4f Threshold %2.3f' % (accuracy_embeddings, threshold_embeddings))
+
+# -----------------------------
+  # Test model on random input data
+  #input_shape = input_details[0]['shape']
+  #input_data = np.array(np.random.random_sample(input_shape), dtype=np.float32)
+  #interpreter.set_tensor(input_details[0]['index'], input_data)
+
+  #interpreter.invoke()
+  #output_data = interpreter.get_tensor(output_details[0]['index'])
+  #print(output_data.shape)
+
+
+
 
 # convert a .pb model to a tflite model
 # if you have a checkpoint model you will have to convert it on a .pb model first.
@@ -73,7 +137,12 @@ def convert_model(args):
   output_arrays = ["outputs"]
 
   converter = tf.contrib.lite.TFLiteConverter.from_frozen_graph(args.model_dir, input_arrays, output_arrays)
+
+  # performs the size optimization
+  converter.post_training_quantize = True
   tflite_model = converter.convert()
+
+  # writing it out
   open(args.output_file, "wb").write(tflite_model)
   print("Model written at " + str(args.output_file))
 
@@ -83,6 +152,8 @@ def main(args):
     validate_lfw(args)
   elif(args.action == 'convert_model'):
     convert_model(args)
+  elif (args.action == 'validate_tflite'):
+    validate_tflite(args)
 
 
 if __name__ == '__main__':
@@ -103,8 +174,9 @@ if __name__ == '__main__':
   parser.add_argument("--action",
                       help="The action you want to do.",
                       type=str,
-                      choices=['validate_lfw', 'convert_model', ''],
+                      choices=['validate_lfw', 'convert_model', 'validate_tflite', ''],
                       default='')
+
 
 
   args = parser.parse_args()
