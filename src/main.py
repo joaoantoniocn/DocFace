@@ -62,12 +62,20 @@ def validate_lfw(args):
   print('Embeddings Accuracy: %2.4f Threshold %2.3f' % (accuracy_embeddings, threshold_embeddings))
 
 
+# convert a .pb model to a tflite model
+# if you have a checkpoint model you will have to convert it on a .pb model first.
+# to make this convertion run the code below:
+# python3 tensorflow/tensorflow/python/tools/freeze_graph.py --input_meta_graph=DocFace-master/log/faceres_ms/graph.meta --input_checkpoint=DocFace-master/log/faceres_ms/ckpt-320000 --output_graph=DocFace-master/log/model/frozen_graph.pb --output_node_names=outputs --input_binary=True
 def convert_model(args):
 
   # converter o modelo
-  converter = tf.contrib.lite.TFLiteConverter.from_saved_model(args.model_dir)
+  input_arrays = ["inputs"]
+  output_arrays = ["outputs"]
+
+  converter = tf.contrib.lite.TFLiteConverter.from_frozen_graph(args.model_dir, input_arrays, output_arrays)
   tflite_model = converter.convert()
-  open("converted_model.tflite", "wb").write(tflite_model)
+  open(args.output_file, "wb").write(tflite_model)
+  print("Model written at " + str(args.output_file))
 
 def main(args):
 
@@ -80,6 +88,8 @@ def main(args):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument("--model_dir", help="The path to the pre-trained model directory", type=str, default= './log/faceres_ms')
+  parser.add_argument("--output_file", help="The path for the output tflite model", type=str,
+                      default='./log/tflite/converted_model.tflite')
   parser.add_argument("--test_dataset_path", help="The path to the test dataset, which should already be align using '.align/face_detect_align.m'", type=str,
                       default='./data/lfw_align')
   parser.add_argument("--lfw_pairs_file",
