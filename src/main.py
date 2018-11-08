@@ -3,6 +3,7 @@ import argparse
 from basenet import BaseNetwork
 import utils
 from lfw import LFWTest
+import tensorflow as tf
 
 def euclidian(x1, x2):
   #x2 = x2.transpose()
@@ -39,8 +40,7 @@ def test():
 # É imporante que as imagens a serem validadas tenham sido alinhadas utilizando o MTCNN que pode ser encontrado em '.align/face_detect_align.m'.
 # A utilização de qualquer outra forma de alinhamento, variante ou não do MTCNN pode afetar de forma direta na performance do modelo.
 # Esse modelo é muito sensivel ao alinhamento das faces, por favor usar o cód em '.align/face_detect_align.m' para alinha-las.
-def main(args):
-
+def validate_lfw(args):
   config = utils.import_file(args.config_file, 'config')
   testset = utils.Dataset(args.test_dataset_path)
 
@@ -61,6 +61,22 @@ def main(args):
   accuracy_embeddings, threshold_embeddings = lfwtest.test_standard_proto(embeddings)
   print('Embeddings Accuracy: %2.4f Threshold %2.3f' % (accuracy_embeddings, threshold_embeddings))
 
+
+def convert_model(args):
+
+  # converter o modelo
+  converter = tf.contrib.lite.TFLiteConverter.from_saved_model(args.model_dir)
+  tflite_model = converter.convert()
+  open("converted_model.tflite", "wb").write(tflite_model)
+
+def main(args):
+
+  if(args.action == 'validate_lfw'):
+    validate_lfw(args)
+  elif(args.action == 'convert_model'):
+    convert_model(args)
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument("--model_dir", help="The path to the pre-trained model directory", type=str, default= './log/faceres_ms')
@@ -74,11 +90,21 @@ if __name__ == '__main__':
                       help="The path to the config file",
                       type=str,
                       default='./config/basemodel.py')
+  parser.add_argument("--action",
+                      help="The action you want to do.",
+                      type=str,
+                      choices=['validate_lfw', 'convert_model', ''],
+                      default='')
 
 
   args = parser.parse_args()
   main(args)
 
 
+# Transforme the checkpoint model in a .pb model
+#python3 tensorflow/tensorflow/python/tools/freeze_graph.py --input_meta_graph=DocFace-master/log/faceres_ms/graph.meta --input_checkpoint=DocFace-master/log/faceres_ms/ckpt-320000 --output_graph=DocFace-master/log/model/frozen_graph.pb --output_node_names=outputs --input_binary=True
+
+
+# extract features for some images described in './result/images.txt' and put those features at './result/output.py'
 #python src/extract_features.py --model_dir ./log/faceres_ms --image_list ./result/images.txt --output ./result/output.npy
 
