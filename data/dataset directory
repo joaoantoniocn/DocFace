@@ -1,0 +1,2 @@
+Add here the lfw folder which was already align using MTCNN on Matlab then rename the folder to 'lfw_align'.
+The code to do the aling is at path '../align/face_detec_align.m'
