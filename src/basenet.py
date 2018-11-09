@@ -217,8 +217,11 @@ class BaseNetwork:
     def extract_feature(self, images, batch_size, verbose=False):
         num_images = images.shape[0] if type(images)==np.ndarray else len(images)
         num_features = self.outputs.shape[1]
+        print("num_images shape: ", str(num_images))
+        print("num_features shape: ", str(num_features))
         result = np.ndarray((num_images, num_features), dtype=np.float32)
         start_time = time.time()
+        total_time = 0.0
         for start_idx in range(0, num_images, batch_size):
             if verbose:
                 elapsed_time = time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))
@@ -226,10 +229,22 @@ class BaseNetwork:
                     % (num_images, start_idx, elapsed_time))
             end_idx = min(num_images, start_idx + batch_size)
             inputs = images[start_idx:end_idx]
+
+            start_time = time.time() # getting time for processing images
+
             feed_dict = {self.inputs: inputs,
                         self.phase_train_placeholder: False,
                     self.keep_prob_placeholder: 1.0}
             result[start_idx:end_idx] = self.sess.run(self.outputs, feed_dict=feed_dict)
+
+            elapsed_time = time.time() - start_time
+            total_time += elapsed_time
+
+            if (start_idx % 100 == 0):
+                print("Extract " + str(start_idx) + "/" + str(num_images))
+            if (start_idx % 1000 == 0):
+                print("Tempo de inferência total: " + str(total_time / 1000))
+                total_time = 0.0
         if verbose:
             print('')
         return result

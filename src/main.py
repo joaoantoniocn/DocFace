@@ -91,6 +91,7 @@ def validate_tflite(args):
   num_features = output_details[0]['shape'][1]
 
   result = np.ndarray((num_images, num_features), dtype=np.float32)
+  total_time = 0.0
 
   print("Extracting Embeddings from LFW...")
   #for start_idx in range(0, num_images, config.batch_size):
@@ -103,15 +104,23 @@ def validate_tflite(args):
     #print("input should be: ", str(input_details[0]['shape']))
     #print("input: ", str(inputs.shape))
     # run net
+    start_time = time.time()
     interpreter.set_tensor(input_details[0]['index'], inputs)
     interpreter.invoke()
 
     # get batches result
     #result[start_idx:end_idx] = interpreter.get_tensor(output_details[0]['index'])
     result[start_idx] = interpreter.get_tensor(output_details[0]['index'])
+    elapsed_time = time.time() - start_time
+    total_time += elapsed_time
+
 
     if(start_idx%100 == 0):
       print("Extract " + str(start_idx) + "/" + str(num_images))
+    if (start_idx % 1000 == 0):
+      print("Tempo de inferência total: " + str(total_time / 1000))
+      total_time = 0.0
+
 
   # calculating accuracy and threshold
   print("Calculating accuracy...")
@@ -190,6 +199,11 @@ if __name__ == '__main__':
 
 # Test the optimized .tflite model on LFW
 #python3 src/main.py --action validate_tflite --model_dir log/tflite/quantized_model.tflite
+
+
+# Test chekpoint model on LFW
+#python3 src/main.py --action validate_lfw
+
 
 # Transform the .pb model to a .tflite optimized (the .tflite model will be written at ./log/tflite/)
 #python3 src/main.py --action convert_model --model_dir log/frozen_model
